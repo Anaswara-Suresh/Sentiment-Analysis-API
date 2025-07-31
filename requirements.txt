@@ -3,3 +3,5 @@ textblob
 fastapi
 uvicorn
 flask
+scipy
+matplotlib
