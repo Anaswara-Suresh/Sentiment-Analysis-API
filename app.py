@@ -5,16 +5,19 @@ import matplotlib.pyplot as plt
 import io
 import base64
 import time
+
+# --- IMPORTANT: Add this import for ASGI compatibility ---
 from starlette.middleware.wsgi import WSGIMiddleware
+
 app = Flask(__name__)
 
 # Fonction pour calculer D_AB
 def calculate_D_AB(Xa, a_AB, a_BA, λ_a, λ_b, q_a, q_b, D_AB0, D_BA0, T):
-    Xb = 1 - Xa  # Fraction molaire de B
+    Xb = 1 - Xa # Fraction molaire de B
     D = Xa*(D_BA0) + Xb*np.log(D_AB0) + \
         2*(Xa*np.log(Xa+(Xb*λ_b)/λ_a)+Xb*np.log(Xb+(Xa*λ_a)/λ_b)) + \
         2*Xa*Xb*((λ_a/(Xa*λ_a+Xb*λ_b))*(1-(λ_a/λ_b)) +
-                 (λ_b/(Xa*λ_a+Xb*λ_b))*(1-(λ_b/λ_a))) + \
+                  (λ_b/(Xa*λ_a+Xb*λ_b))*(1-(λ_b/λ_a))) + \
         Xb*q_a*((1-((Xb*q_b*np.exp(-a_BA/T))/(Xa*q_a+Xb*q_b*np.exp(-a_BA/T)))**2)*(-a_BA/T)+(1-((Xb*q_b)/(Xb*q_b+Xa*q_a*np.exp(-a_AB/T)))**2)*np.exp(-a_AB/T)*(-a_AB/T)) + \
         Xa*q_b*((1-((Xa*q_a*np.exp(-a_AB/T))/(Xa*q_a*np.exp(-a_AB/T)+Xb*q_b))**2)*(-a_AB/T)+(1-((Xa*q_a)/(Xa*q_a+Xb*q_b*np.exp(-a_BA/T)))**2)*np.exp(-a_BA/T)*(-a_BA/T))
     # Calcul de D_AB
@@ -36,6 +39,8 @@ def calculate():
         D_AB_exp = float(request.form['D_AB_exp'])
         T = float(request.form['T'])
         Xa = float(request.form['Xa'])
+        # Using eval() can be a security risk if input is not controlled.
+        # Consider a safer parsing method if this is user-facing.
         λ_a = eval(request.form['λ_a'])
         λ_b = eval(request.form['λ_b'])
         q_a = float(request.form['q_a'])
@@ -78,7 +83,7 @@ def calculate():
         execution_time = time.time() - start_time
 
         # Générer la courbe
-        Xa_values = np.linspace(0, 0.7, 100)  # Fraction molaire de A
+        Xa_values = np.linspace(0, 0.7, 100) # Fraction molaire de A
         D_AB_values = calculate_D_AB(Xa_values, a_AB_opt, a_BA_opt, λ_a, λ_b, q_a, q_b, D_AB0, D_BA0, T)
         plt.plot(Xa_values, D_AB_values)
         plt.xlabel('Fraction molaire de A')
@@ -96,5 +101,13 @@ def calculate():
         # Affichage des résultats
         return render_template('result.html', a_AB_opt=a_AB_opt, a_BA_opt=a_BA_opt, D_AB_opt=D_AB_opt, error=error, iteration=iteration, execution_time=execution_time, graph=graph)
 
-if __name__ == '__main__':
-    app.run(debug=True)
+# --- THIS IS THE CRUCIAL LINE FOR RAILWAY/UVICORN DEPLOYMENT ---
+# It wraps your Flask app (WSGI) into an ASGI compatible application
+# that Uvicorn can serve.
+asgi_app = WSGIMiddleware(app)
+
+# --- Remove or comment out this block for Railway deployment ---
+# This block is for local development with `python app.py`
+# Railway uses the `uvicorn app:asgi_app` command to run your app
+# if __name__ == '__main__':
+#     app.run(debug=True)
