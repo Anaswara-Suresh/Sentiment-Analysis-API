@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import io
 import base64
 import time
-
+from starlette.middleware.wsgi import WSGIMiddleware
 app = Flask(__name__)
 
 # Fonction pour calculer D_AB
